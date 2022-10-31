@@ -66,16 +66,16 @@ def loadKeys():
 
   return privateKey, publicKey
 
-def sign(filename, data, key):
-  encrypted_hash = rsa.sign(data, key, 'SHA-256')
+def sign(filename, data, privateKey):
+  encrypted_hash = rsa.sign(data, privateKey, 'SHA-256')
   with open('signature.rsa', 'wb') as f:
     f.write(encrypted_hash)
   return
 
-def verify(data, key):
+def verify(data, publicKey):
   try:
     with open('signature.rsa', 'rb') as f:
-      res = rsa.verify(data, f.read(), key)
+      res = rsa.verify(data, f.read(), publicKey)
     return res
   except:
     return False
