@@ -8,23 +8,6 @@ import decimal
 L = 512
 N = 160
 
-# z^-1 mod a
-def inverse(z,a):
-	if z > 0 and z < a and a > 0:
-		i = a
-		j = z
-		y1 = 1
-		y2 = 0
-		while j > 0:
-			q = i/j
-			r = i-j*q
-			y = y2 - y1*q
-			i, j = j, r
-			y2, y1 = y1, y
-		if i == 1:
-			return y2 % a
-    
-	raise InverseErrorException
 
 def no_bits(p):
   return len(bin(p)) - 2
@@ -56,9 +39,13 @@ def main():
   hashed = hashlib.sha256(data).hexdigest()
   p, q, g = get_dsa_parameters()
   x, y = generate_keys(p, q, g)
-  print(x, ' : ', y)
-    
-  print(sign(p, q, g, x, hashed))
+  with open('keys/dsa_x', 'w') as f:
+    f.write(str(x))
+  with open('keys/dsa_y', 'w') as f:
+    f.write(str(y))
+  with open('dsa_signature.dsa', 'w') as f:
+    params = sign(p, q, g, x, hashed)
+    f.write(f'{params[0]}:{params[1]}')
 
 def get_file(filepath, modes):
   if os.path.isfile(filepath):

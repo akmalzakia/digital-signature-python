@@ -35,11 +35,18 @@ def main():
     print("File not found!")
     return
 
+  # Get resources needed for verification
   hashed = hashlib.sha256(data).hexdigest()
   p, q, g = get_dsa_parameters()
-  r = 62848322901515068477839948778542479012575769042
-  s = 17565691724096304496768666585172790092041349629990328096402237941222797906952975133286763510109190664793617507188696160133663882483738644554561
-  y = 4256298120274348371212074726887427396228007773115925395503976054868995480998781161980466575073700741277842431330692929082200233315681317179004680899471810
+
+  # Get signature
+  with open('dsa_signature.dsa', 'r') as f:
+    params = f.read().split(':')
+    r, s = int(params[0]), int(params[1])
+
+  # Get public key
+  with open('keys/dsa_y', 'r') as f:
+    y = int(f.read())
   print(verify(hashed, p, q, g, r, s, y))
 
 def get_file(filepath, modes):
