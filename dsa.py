@@ -5,6 +5,9 @@ from gmpy2 import is_prime
 from gmpy2 import powmod
 import sys
 
+from PDFController.EmbedPDF import EmbedPDF
+from PDFController.SignatureExtractor import SignatureExtractor
+
 L = 512
 N = 160
 
@@ -117,14 +120,21 @@ def main():
 
 def verifying(dsa, hashed):
   # Get signature, bisa diganti dengan misahin signature
-  print("Insert signature file:")
-  print(">>", end=' ', flush=True)
-  signature_file = input()
-  print('-' * 20)
+  file2 = open(sys.argv[2], 'rb')
+  extractor = SignatureExtractor(file2)
+  # print(extractor.getSignature())
+  # print("Insert signature file:")
+  # print(">>", end=' ', flush=True)
+  # signature_file = input()
+  # print('-' * 20)
   
-  with open(signature_file, 'r') as f:
-    params = f.read().split(':')
-    r, s = int(params[0]), int(params[1])
+  params = extractor.getSignature()
+  params = params.split(':')
+  r, s = int(params[0]), int(params[1])
+  
+  # with open(signature_file, 'r') as f:
+  #   params = f.read().split(':')
+  #   r, s = int(params[0]), int(params[1])
 
   # Get public key
   print("Insert public key file:")
@@ -158,10 +168,15 @@ def signing(dsa, hashed):
     
   
   ## bisa buat write PDF
-  with open('dsa_signature.dsa', 'w') as f:
-    params = dsa.sign(x, hashed)
-    print(no_bits(params[0]), ':', no_bits(params[1]))
-    f.write(f'{params[0]}:{params[1]}')
+  file = open(sys.argv[2], 'rb')
+  embedTool = EmbedPDF(file)
+  embedTool.embedSignature('THIS IS A SIGNATURE')
+  embedTool.saveFile(sys.argv[2])
+
+  # with open('dsa_signature.dsa', 'w') as f:
+  #   params = dsa.sign(x, hashed)
+  #   print(no_bits(params[0]), ':', no_bits(params[1]))
+  #   f.write(f'{params[0]}:{params[1]}')
 
 def check_file(filepath):
   return os.path.exists(filepath) and not os.stat(filepath).st_size == 0
