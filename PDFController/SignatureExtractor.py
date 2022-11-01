@@ -18,7 +18,7 @@ class SignatureExtractor:
   def getSignature(self):
     pdfReader = PdfFileReader(self.file) 
     pageObj = pdfReader.getPage(pdfReader.numPages - 1) 
-    return pageObj.extractText().strip()
+    return ''.join(pageObj.extractText().strip().split('\n'))
 
   def setFile(self, file):
     self.file = file
