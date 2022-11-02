@@ -31,6 +31,13 @@ def get_file(filepath, modes):
     return f_data
   
   return FileNotFoundException
+
+def int_to_bytes(x: int) -> bytes:
+    return x.to_bytes((x.bit_length() + 7) // 8, 'big')
+
+def int_from_bytes(xbytes: bytes) -> int:
+    return int.from_bytes(xbytes, 'big')
+
 class DSA:
   def __init__(self, p = default_p, q = default_q, g = default_g) -> None:
     if not self.is_valid(p, q, g):
@@ -108,35 +115,29 @@ def main():
     return
 
   dsa = DSA()
-  hashed = hashlib.sha256(data).hexdigest()
+  
 
   if token == 'sign':
-    signing(dsa, hashed)
+    signing(dsa, data)
   elif token == 'verify':
-    verifying(dsa, hashed)
-  
+    verifying(dsa, data)
+  else:
+    usage()
+
   print(f'---- {token.upper()} PROCESS DONE ----')
 
 
-def verifying(dsa, hashed):
-  # Get signature, bisa diganti dengan misahin signature
-  print("Insert signature file:")
-  print(">>", end=' ', flush=True)
-  signature_file = input()
-  print('-' * 20)
-  
-  with open(signature_file, 'r') as f:
-    params = f.read().split(':')
-    r, s = int(params[0]), int(params[1])
+def verifying(dsa, data):
 
   # Get public key
-  print("Insert public key file:")
-  print(">>", end=' ', flush=True)
-  y_file = input()
-  print('-' * 20)
-
-  with open(y_file, 'r') as f:
+  with open(default_y_path, 'r') as f:
     y = int(f.read())
+    y_b = int_to_bytes(y)
+  
+  splitted_file = data.split(y_b)
+
+  hashed = hashlib.sha256(splitted_file[0]).hexdigest()
+  r, s = int_from_bytes(splitted_file[1]), int_from_bytes(splitted_file[2])
   
   if dsa.verify(hashed, r, s, y):
     print("Verification Success --- Signature Match")
@@ -145,8 +146,8 @@ def verifying(dsa, hashed):
 
   
 
-def signing(dsa, hashed):
-  
+def signing(dsa, data):
+  hashed = hashlib.sha256(data).hexdigest()
   if check_file(default_x_path) and check_file(default_y_path):
     with open(default_x_path, 'r') as f:
       x = int(f.read())
@@ -158,11 +159,13 @@ def signing(dsa, hashed):
       f.write(str(x))
     with open(default_y_path, 'w') as f:
       f.write(str(y))
+  
+  file = os.path.splitext(sys.argv[2])
 
-  with open('dsa_signature.dsa', 'w') as f:
+  with open(f'{file[0]}_dsa_signed{file[1]}', 'wb') as f:
     params = dsa.sign(x, hashed)
-    print(no_bits(params[0]), ':', no_bits(params[1]))
-    f.write(f'{params[0]}:{params[1]}')
+    f.write(data + int_to_bytes(y) + int_to_bytes(params[0]) + int_to_bytes(y) + int_to_bytes(params[1]))
+
 
 def check_file(filepath):
   return os.path.exists(filepath) and not os.stat(filepath).st_size == 0

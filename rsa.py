@@ -1,45 +1,56 @@
 import hashlib
 import os
-import rsa
+import sys
+from Crypto.PublicKey import RSA
 
-keystore = 'keys/'
+default_private_path = 'keys/privateKey.pem'
+default_public_path = 'keys/publicKey.pem'
 
-def display_commands():
-  print("List of commands:")
-  print("1. sign \{document\}")
-  print("2. verify \{document\}")
-  print("3. generate")
+def usage():
+  print("Usage: rsa.py <command> <file>")
+  print("Commands:")
+  print("-s, -S, --sign\t\tSign a file")
+  print("-v, -V, --verify\tVerify signature")
 
 def main():
-  while(True):
-    display_commands()
-    try:
-      msg = input()
-      if not msg:
-        continue
-    except KeyboardInterrupt:
-      break
+  if len(sys.argv) < 3:
+    usage()
+    exit(-1) 
+  
+  # Get token
+  token = sys.argv[1]
+  if token == '-V' or token == '--verify' or token == '-v':
+    token = 'verify'
+  elif token == '-S' or token == '--sign' or token == '-s':
+    token = 'sign'
+  else:
+    usage()
+    exit(-1)
 
-    cmd = msg.split(" ")
+  try:
+    data = get_file(sys.argv[2], 'rb')
+  except IndexError:
+    print("Index error")
+    return
+  except FileNotFoundException:
+    print("File not found!")
+    return
 
-
-    try:
-      data = get_file(cmd[1], 'rb')
-    except IndexError:
-      print("Index error")
-      continue
-    except FileNotFoundException:
-      print("File not found!")
-      continue
-
+  if check_file(default_private_path) and check_file(default_public_path):
     privateKey, publicKey = loadKeys()
+    print('x')
+  else:
+    privateKey, publicKey = generate_keys()
+  
     
-    if cmd[0] == 'sign':
-      sign(cmd[1], data, privateKey)
-    elif cmd[0] == 'verify':
-      print(verify(data, publicKey))
-    else:
-      continue
+  if token == 'sign':
+    sign(data, privateKey)
+  elif token == 'verify':
+    verify(data, publicKey)
+  else:
+    usage()
+
+  print(f'---- {token.upper()} PROCESS DONE ----')
 
 def get_file(filepath, modes):
   if os.path.isfile(filepath):
@@ -52,34 +63,45 @@ def get_file(filepath, modes):
   return FileNotFoundException
 
 def generate_keys():
-  (publicKey, privateKey) = rsa.newkeys(1024)
-  with open('keys/publicKey.pem', 'wb') as p:
-    p.write(publicKey.save_pkcs1('PEM'))
-  with open('keys/privateKey.pem', 'wb') as p:
-    p.write(privateKey.save_pkcs1('PEM'))
+  keys = RSA.generate(bits=1024)
+  publicKey = keys.publickey().export_key()
+  privateKey = keys.export_key()
+  with open(default_public_path, 'wb') as p:
+    p.write(publicKey)
+  with open(default_private_path, 'wb') as p:
+    p.write(privateKey)
+  
+  return privateKey, publicKey
+  
 
 def loadKeys():
-  with open('keys/publicKey.pem', 'rb') as p:
-    publicKey = rsa.PublicKey.load_pkcs1(p.read())
-  with open('keys/privateKey.pem', 'rb') as p:
-    privateKey = rsa.PrivateKey.load_pkcs1(p.read())
+  with open(default_public_path, 'rb') as p:
+    publicKey = RSA.import_key(p.read())
+  with open(default_private_path, 'rb') as p:
+    privateKey = RSA.import_key(p.read())
 
   return privateKey, publicKey
 
-def sign(filename, data, privateKey):
-  encrypted_hash = rsa.sign(data, privateKey, 'SHA-256')
-  with open('signature.rsa', 'wb') as f:
-    f.write(encrypted_hash)
+def sign(data, privateKey):
+  file = os.path.splitext(sys.argv[2])
+  hashed = int.from_bytes(hashlib.sha256(data).digest(), byteorder='big')
+  signature = pow(hashed, privateKey.d, privateKey.n).to_bytes(256, 'big')
+  with open(f'{file[0]}_signed{file[1]}', 'wb') as f:
+    f.write(data + signature)
   return
 
 def verify(data, publicKey):
-  try:
-    with open('signature.rsa', 'rb') as f:
-      res = rsa.verify(data, f.read(), publicKey)
-    return res
-  except:
-    return False
+  signature = data[-256:]
+  original = data[:-256]
+  res = pow(int.from_bytes(signature, 'big'), publicKey.e, publicKey.n)
+  hashed = int.from_bytes(hashlib.sha256(original).digest(), byteorder='big')
+  if hashed == res:
+    print("Verification Success --- Signature Match")
+  else:
+    print("Verification Failed --- Signature not match")
 
+def check_file(filepath):
+  return os.path.exists(filepath) and not os.stat(filepath).st_size == 0
 class FileNotFoundException(Exception):
   pass
 
